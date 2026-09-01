@@ -90,7 +90,8 @@ function fillContact(doc, win, over) {
   delete over.consent;
   const vals = Object.assign({
     "c-firstname": "Ralf", "c-lastname": "Lethmate", "c-email": "ralf@example.org",
-    "c-company": "it-agile GmbH", "c-role": "IT-Leitung / CIO / CTO", "c-teams": "6–10"
+    "c-phone": "040 4135848 0", "c-company": "it-agile GmbH",
+    "c-topic": "Bitte um Beratung", "c-message": "Wir stocken zwischen vier Teams."
   }, over);
   Object.keys(vals).forEach(id => { $(doc, id).value = vals[id]; });
   $(doc, "c-consent").checked = consent;
@@ -357,8 +358,9 @@ async function main() {
     check("Ergebnis unabhängig von den Daten", txt.includes("Auf dein Ergebnis hat das keinen Einfluss"));
     submitContact(doc, win);
     check("leeres Formular blockiert", !visible(doc, "screen-result"));
-    ["err-firstname", "err-lastname", "err-email", "err-company", "err-consent"]
+    ["err-firstname", "err-lastname", "err-email", "err-consent"]
       .forEach(id => check("Fehler " + id, !$(doc, id).hidden));
+    check("Unternehmen ist optional, kein Fehlerfeld", !doc.getElementById("err-company"));
     fillContact(doc, win, { "c-email": "keine-mail" });
     submitContact(doc, win);
     check("ungültige E-Mail blockiert", !$(doc, "err-email").hidden);
@@ -388,7 +390,14 @@ async function main() {
       check("Ziel /api/submit", calls[0].url === "https://qc.example.org/api/submit");
       const body = JSON.parse(calls[0].init.body);
       check("15 Antworten", Object.keys(body.answers).length === 15);
-      check("Kontaktdaten mit Einwilligung", body.contact.email === "ralf@example.org" && body.contact.consent === true);
+      check("Kontaktdaten mit Einwilligung",
+        body.contact.email === "ralf@example.org" && body.contact.consent === true);
+      check("Telefon, Thema und Nachricht übertragen",
+        body.contact.phone === "040 4135848 0" &&
+        body.contact.topic === "Bitte um Beratung" &&
+        body.contact.message === "Wir stocken zwischen vier Teams.", body.contact);
+      check("keine Altfelder rolle/teams mehr im Payload",
+        body.contact.role === undefined && body.contact.teams === undefined);
       check("Raum mitgesendet", body.room === "default");
       check("Quelle gesetzt", body.source === "it-team-flow.de/quick-check");
     }
@@ -666,8 +675,9 @@ async function main() {
     r = await post("/api/submit", {
       id: "lead1", room: "public", answers: answersFor(3),
       contact: {
-        firstname: "Ralf", lastname: "L", email: "r@example.org", company: "it-agile",
-        role: "IT-Leitung", teams: "6-10", consent: true,
+        firstname: "Ralf", lastname: "L", email: "r@example.org",
+        phone: "040 4135848 0", company: "it-agile", topic: "Bitte um Beratung",
+        message: "M".repeat(5000), consent: true,
         boesesFeld: "sollte verschwinden", company2: "x".repeat(500)
       },
       source: "it-team-flow.de/quick-check"
@@ -687,13 +697,29 @@ async function main() {
     const data = await r.json();
     const lead = data.submissions.find(s => s.id === "lead1");
     check("Kontaktdaten gespeichert", lead && lead.contact.email === "r@example.org");
+    check("Telefon gespeichert", lead && lead.contact.phone === "040 4135848 0");
+    check("Thema gespeichert", lead && lead.contact.topic === "Bitte um Beratung");
     check("unbekanntes Feld verworfen", lead && lead.contact.boesesFeld === undefined);
-    check("überlanges Feld gekappt", lead && lead.contact.company2 === undefined);
+    check("überlanges unbekanntes Feld verworfen", lead && lead.contact.company2 === undefined);
+    check("Freitext auf 4000 Zeichen gekappt",
+      lead && lead.contact.message.length === 4000, lead && lead.contact.message.length);
     check("Einwilligung als Wahrheitswert", lead && lead.contact.consent === true);
     check("Zeitstempel gesetzt", lead && typeof lead.ts === "number");
     check("Raum gespeichert", lead && lead.room === "public");
     check("Antworten im Teamraum ohne Kontaktdaten",
       data.submissions.find(s => s.id === "a1").contact === undefined);
+
+    r = await post("/api/submit", {
+      id: "lead2b", room: "public", answers: answersFor(4),
+      contact: { firstname: "A", lastname: "B", email: "a@b.de", message: "kurz", consent: true }
+    });
+    check("Einreichung mit leeren optionalen Feldern angenommen", r.status === 200);
+    const d2 = await (await fetch(base + "/api/data?room=public",
+      { headers: { "x-admin-token": TOKEN } })).json();
+    const l2 = d2.submissions.find(x => x.id === "lead2b");
+    check("kurzer Freitext unverändert gespeichert", l2 && l2.contact.message === "kurz");
+    check("nicht gesendete Felder fehlen einfach",
+      l2 && l2.contact.phone === undefined && l2 && l2.contact.topic === undefined);
 
     r = await fetch(base + "/api/data?room=wien", { headers: { "x-admin-token": TOKEN } });
     check("Rohdaten nach Raum filterbar", (await r.json()).count === 2);
@@ -786,7 +812,53 @@ async function main() {
     try { fs.unlinkSync(DATA2); } catch (e) { }
   }
 
-  section("[13] Verlinkungen, Assets, Barrierefreiheit");
+  section("[13] Kontaktformular deckt sich mit it-agile.de/kontakt/");
+  {
+    const { doc } = boot(soloHtml);
+    const label = (id) => (doc.querySelector('label[for="' + id + '"]') || {}).textContent || "";
+    const norm = (t) => t.replace(/\s+/g, " ").trim();
+
+    // Beschriftungen wörtlich wie im Powermail-Formular auf it-agile.de
+    check("Beschriftung Vorname", norm(label("c-firstname")) === "Vorname *", norm(label("c-firstname")));
+    check("Beschriftung Nachname", norm(label("c-lastname")) === "Nachname *");
+    check("Beschriftung E-Mail", norm(label("c-email")) === "E-Mail *");
+    check("Beschriftung Telefon", norm(label("c-phone")) === "Telefon");
+    check("Beschriftung des Themenfelds",
+      norm(label("c-topic")) === "Womit können wir Dir helfen?", norm(label("c-topic")));
+    check("Platzhalter des Telefonfelds wie dort",
+      $(doc, "c-phone").getAttribute("placeholder") === "Telefon für schnellsten Kontakt");
+
+    // Auswahlliste exakt wie dort
+    const optionen = [...$(doc, "c-topic").options].map(o => o.textContent);
+    check("Auswahlliste identisch zu it-agile.de",
+      JSON.stringify(optionen) === JSON.stringify(["Bitte wählen", "Frage zu einer Schulung",
+        "Frage zu einem Angebot", "Bitte um Beratung", "Organisatorische Frage", "Sonstiges"]), optionen);
+
+    // Einwilligungstext wörtlich
+    const cons = norm(label("c-consent"));
+    check("Einwilligungstext wörtlich übernommen",
+      cons.startsWith("Ich willige in die Verarbeitung meiner Daten durch die it-agile GmbH ein und habe die Datenschutzerklärung zur Kenntnis genommen."),
+      cons);
+    check("Datenschutzerklärung im Einwilligungstext verlinkt",
+      !!doc.querySelector('label[for="c-consent"] a[href="../datenschutz.html"]'));
+    check("Hinweis auf Pflichtfelder wie dort",
+      norm($(doc, "screen-contact").textContent).includes("* Benötigte Angaben"));
+
+    // Freitextfeld und Spam-Falle
+    check("Freitextfeld vorhanden", $(doc, "c-message").tagName === "TEXTAREA");
+    check("Freitextfeld ausdrücklich optional", label("c-message").includes("optional"));
+    check("Spam-Falle mit der Beschriftung von dort",
+      label("c-website").includes("Don't fill this field!"), norm(label("c-website")));
+    check("Spam-Falle für Screenreader und Tastatur ausgenommen",
+      $(doc, "c-website").getAttribute("tabindex") === "-1" &&
+      $(doc, "c-website").closest("[aria-hidden]").getAttribute("aria-hidden") === "true");
+
+    // Felder, die es dort NICHT gibt, sind auch hier weg
+    check("kein Rollenfeld mehr", !doc.getElementById("c-role"));
+    check("kein Teamanzahl-Feld mehr", !doc.getElementById("c-teams"));
+  }
+
+  section("[14] Verlinkungen, Assets, Barrierefreiheit");
   {
     const { doc } = boot(soloHtml);
 
@@ -867,12 +939,13 @@ async function main() {
     check("keine externen Ressourcen",
       [...doc.querySelectorAll("script[src], link[rel=stylesheet]")].length === 0);
     check("alle Formularfelder mit Label",
-      [...doc.querySelectorAll("#form-contact input, #form-contact select")]
+      [...doc.querySelectorAll("#form-contact input, #form-contact select, #form-contact textarea")]
         .filter(el => el.type !== "hidden")
         .every(el => !!doc.querySelector('label[for="' + el.id + '"]')));
     check("Pflichtfelder als required markiert",
-      ["c-firstname", "c-lastname", "c-email", "c-company", "c-consent"]
-        .every(id => $(doc, id).required));
+      ["c-firstname", "c-lastname", "c-email", "c-consent"].every(id => $(doc, id).required));
+    check("optionale Felder nicht als required markiert",
+      ["c-company", "c-phone", "c-topic", "c-message"].every(id => !$(doc, id).required));
     check("Fortschritt mit aria-live", !!doc.querySelector("#progress[aria-live]"));
     check("Schrittanzeige für Screenreader ausgeblendet",
       doc.querySelector("#steps").getAttribute("aria-hidden") === "true");

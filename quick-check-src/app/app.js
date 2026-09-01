@@ -750,14 +750,17 @@
     }
   }
 
+  /* Feldsatz bewusst identisch zum Kontaktformular auf it-agile.de/kontakt/
+   * (TYPO3 Powermail), damit Anfragen aus beiden Quellen gleich aussehen. */
   function collectContact() {
     return {
       firstname: $("c-firstname").value.trim(),
       lastname: $("c-lastname").value.trim(),
       email: $("c-email").value.trim(),
+      phone: $("c-phone").value.trim(),
       company: $("c-company").value.trim(),
-      role: $("c-role").value,
-      teams: $("c-teams").value,
+      topic: $("c-topic").value,
+      message: $("c-message").value.trim(),
       consent: $("c-consent").checked
     };
   }
@@ -775,9 +778,6 @@
     var emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(c.email);
     setFieldError("c-email", "err-email", emailOk ? "" : "Bitte gib eine gültige E-Mail-Adresse an.");
     if (!emailOk) ok = false;
-
-    setFieldError("c-company", "err-company", c.company ? "" : "Bitte gib dein Unternehmen an.");
-    if (!c.company) ok = false;
 
     var consentErr = $("err-consent");
     if (!c.consent) {

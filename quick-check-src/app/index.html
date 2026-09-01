@@ -415,7 +415,9 @@
     }
 
     .field input[type=text],
+    .field input[type=tel],
     .field input[type=email],
+    .field textarea,
     .field select {
       width: 100%;
       font: inherit;
@@ -426,7 +428,26 @@
       color: var(--ink);
     }
 
+    .field textarea {
+      min-height: 110px;
+      resize: vertical;
+      font-family: inherit;
+    }
+
+    .field .hint {
+      font-weight: 400;
+      color: var(--ink-muted);
+      font-size: 0.85rem;
+    }
+
+    .req-note {
+      color: var(--ink-muted);
+      font-size: 0.85rem;
+      margin: 0 0 18px;
+    }
+
     .field input[aria-invalid=true],
+    .field textarea[aria-invalid=true],
     .field select[aria-invalid=true] {
       border-color: var(--accent);
       background: #fdf3ee;
@@ -872,56 +893,54 @@
               <div class="err" id="err-lastname" hidden></div>
             </div>
           </div>
-          <div class="field">
-            <label for="c-email">E-Mail (geschäftlich) <span class="req" aria-hidden="true">*</span></label>
-            <input type="email" id="c-email" name="email" autocomplete="email" required>
-            <div class="err" id="err-email" hidden></div>
-          </div>
           <div class="grid2">
             <div class="field">
-              <label for="c-company">Unternehmen <span class="req" aria-hidden="true">*</span></label>
-              <input type="text" id="c-company" name="company" autocomplete="organization" required>
-              <div class="err" id="err-company" hidden></div>
+              <label for="c-email">E-Mail <span class="req" aria-hidden="true">*</span></label>
+              <input type="email" id="c-email" name="email" autocomplete="email" required>
+              <div class="err" id="err-email" hidden></div>
             </div>
             <div class="field">
-              <label for="c-role">Rolle</label>
-              <select id="c-role" name="role">
-                <option value="">Bitte wählen</option>
-                <option>IT-Leitung / CIO / CTO</option>
-                <option>Bereichs- oder Abteilungsleitung</option>
-                <option>Teamleitung</option>
-                <option>Agile Coach / Scrum Master</option>
-                <option>Product Owner / Produktmanagement</option>
-                <option>Architektur / Entwicklung</option>
-                <option>Sonstiges</option>
-              </select>
+              <label for="c-phone">Telefon</label>
+              <input type="tel" id="c-phone" name="phone" autocomplete="tel"
+                placeholder="Telefon für schnellsten Kontakt">
             </div>
           </div>
           <div class="field">
-            <label for="c-teams">Anzahl Teams in deinem Verantwortungsbereich</label>
-            <select id="c-teams" name="teams">
+            <label for="c-company">Unternehmen</label>
+            <input type="text" id="c-company" name="company" autocomplete="organization">
+          </div>
+          <div class="field">
+            <label for="c-topic">Womit können wir Dir helfen?</label>
+            <select id="c-topic" name="topic">
               <option value="">Bitte wählen</option>
-              <option>1–2</option>
-              <option>3–5</option>
-              <option>6–10</option>
-              <option>11–25</option>
-              <option>mehr als 25</option>
+              <option>Frage zu einer Schulung</option>
+              <option>Frage zu einem Angebot</option>
+              <option>Bitte um Beratung</option>
+              <option>Organisatorische Frage</option>
+              <option>Sonstiges</option>
             </select>
           </div>
+          <div class="field">
+            <label for="c-message">Deine Nachricht an uns <span class="hint">(optional)</span></label>
+            <textarea id="c-message" name="message" rows="4"
+              placeholder="Was möchtest Du zu Deinem Ergebnis besprechen?"></textarea>
+          </div>
 
-          <!-- Spam-Falle: für Menschen unsichtbar, für Bots attraktiv -->
+          <!-- Spam-Falle: für Menschen unsichtbar, für Bots attraktiv.
+               Entspricht dem Feld __hp im Kontaktformular auf it-agile.de. -->
           <div class="hp" aria-hidden="true">
-            <label for="c-website">Website</label>
+            <label for="c-website">Don't fill this field!</label>
             <input type="text" id="c-website" name="website" tabindex="-1" autocomplete="off">
           </div>
 
           <div class="consent">
             <input type="checkbox" id="c-consent" name="consent" required>
-            <label for="c-consent">Ich bin damit einverstanden, dass die it-agile GmbH meine Angaben speichert, um mich
-              zu meinem Ergebnis zu kontaktieren. Die Einwilligung kann ich jederzeit widerrufen. Details in der
-              <a href="../datenschutz.html" target="_blank" rel="noopener">Datenschutzerklärung</a>.</label>
+            <label for="c-consent">Ich willige in die Verarbeitung meiner Daten durch die it-agile GmbH ein und
+              habe die <a href="../datenschutz.html" target="_blank" rel="noopener">Datenschutzerklärung</a> zur
+              Kenntnis genommen. <span class="req" aria-hidden="true">*</span></label>
           </div>
           <div class="err" id="err-consent" hidden></div>
+          <p class="req-note">* Benötigte Angaben</p>
 
           <div id="submit-error" class="notice" hidden></div>
 

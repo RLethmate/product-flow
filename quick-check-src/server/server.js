@@ -46,6 +46,7 @@ const PUBLIC_URL = (process.env.PUBLIC_URL || "").replace(/\/+$/, "");
 
 const MAX_ANSWERS = 50;          // grosszügige Obergrenze, schützt vor Müll
 const MAX_FIELD_LEN = 200;       // je Kontaktfeld
+const MAX_MESSAGE_LEN = 4000;    // Freitextfeld
 const MAX_ROOM_LEN = 40;
 const RATE_MAX = 30;             // Einreichungen je IP
 const RATE_WINDOW_MS = 10 * 60 * 1000;
@@ -94,9 +95,13 @@ function cleanContact(contact) {
   if (contact === undefined || contact === null) return undefined;
   if (typeof contact !== "object" || Array.isArray(contact)) return null;
   const out = {};
-  ["firstname", "lastname", "email", "company", "role", "teams"].forEach((k) => {
+  ["firstname", "lastname", "email", "phone", "company", "topic"].forEach((k) => {
     if (typeof contact[k] === "string") out[k] = contact[k].trim().slice(0, MAX_FIELD_LEN);
   });
+  // Freitext braucht mehr Platz als ein Namensfeld, aber ebenfalls eine Grenze.
+  if (typeof contact.message === "string") {
+    out.message = contact.message.trim().slice(0, MAX_MESSAGE_LEN);
+  }
   out.consent = contact.consent === true;
   return out;
 }
