@@ -1,0 +1,31 @@
+[Unit]
+Description=LASTA Quick Check backend
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/quick-check
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+User=quickcheck
+Group=quickcheck
+
+Environment=PORT=3000
+Environment=DATA_FILE=/var/lib/quick-check/data.json
+# Pflicht, sonst sind /api/data und /api/reset deaktiviert:
+Environment=ADMIN_TOKEN=BITTE-ERSETZEN
+# Damit der oeffentliche Quick Check auf it-team-flow.de Leads senden darf:
+Environment=ALLOWED_ORIGINS=https://it-team-flow.de
+# Basis-URL fuer den QR-Code:
+Environment=PUBLIC_URL=https://quick-check.it-team-flow.de
+
+# Absicherung: der Dienst braucht nur sein Datenverzeichnis
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/quick-check
+
+[Install]
+WantedBy=multi-user.target
