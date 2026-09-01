@@ -281,11 +281,15 @@
       line-height: 1;
     }
 
+    /* Die Antwortkacheln sind optisch schwer. Unter ihnen braucht die naechste
+       Aussage deutlich mehr Luft als unter der leichten Skalen-Legende, sonst
+       kleben zweite und dritte Aussage an den Kacheln darueber. Der Abstand
+       verteilt sich bewusst auf beide Seiten der Trennlinie. */
     fieldset.q {
       border: 0;
       border-top: 1px solid var(--line);
       margin: 0;
-      padding: 18px 0 6px;
+      padding: 22px 0 24px;
     }
 
     fieldset.q:first-of-type {
@@ -392,6 +396,11 @@
 
       .scale-anchors {
         display: flex;
+      }
+
+      /* Die eingeblendeten Anker liefern hier bereits Trennung. */
+      fieldset.q {
+        padding-bottom: 14px;
       }
 
       .scale-legend {
