@@ -858,7 +858,38 @@ async function main() {
     check("kein Teamanzahl-Feld mehr", !doc.getElementById("c-teams"));
   }
 
-  section("[14] Verlinkungen, Assets, Barrierefreiheit");
+  section("[14] Webinar-Verweis der Landingpage");
+  {
+    /* Die sechs Webinar-Schaltflaechen ziehen ihre Adresse aus einer einzigen
+     * Einstellung. Der Zoom-Link war tot (HTTP 404) und ist auskommentiert,
+     * damit er wiederzufinden ist. */
+    const toml = fs.readFileSync(path.join(REPO, "hugo.toml"), "utf8");
+    const aktiv = toml.split("\n").filter(l => !l.trim().startsWith("#"));
+    const zeile = aktiv.find(l => l.includes("webinar_url"));
+    check("genau eine aktive Webinar-Einstellung",
+      aktiv.filter(l => l.includes("webinar_url")).length === 1, zeile);
+    check("aktive Einstellung ist der mailto-Verweis",
+      /webinar_url\s*=\s*"mailto:info@it-agile\.de"/.test(zeile || ""), zeile);
+    check("kein aktiver Zoom-Link mehr",
+      !aktiv.some(l => l.includes("us02web.zoom.us")));
+    check("alter Zoom-Link als Kommentar erhalten",
+      toml.split("\n").some(l => l.trim().startsWith("#") && l.includes("us02web.zoom.us")));
+
+    const quellen = ["layouts", "content"];
+    quellen.forEach((d) => {
+      const treffer = [];
+      const walk = (p2) => fs.readdirSync(p2, { withFileTypes: true }).forEach((e) => {
+        const full = path.join(p2, e.name);
+        if (e.isDirectory()) return walk(full);
+        if (!/\.(html|md)$/.test(e.name)) return;
+        if (fs.readFileSync(full, "utf8").includes("us02web.zoom.us")) treffer.push(full);
+      });
+      walk(path.join(REPO, d));
+      check("keine fest verdrahtete Zoom-URL in " + d + "/", treffer.length === 0, treffer);
+    });
+  }
+
+  section("[15] Verlinkungen, Assets, Barrierefreiheit");
   {
     const { doc } = boot(soloHtml);
 
