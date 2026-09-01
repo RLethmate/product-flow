@@ -1,0 +1,5 @@
+# Hugo erzeugt das Ausgabeverzeichnis bei jedem Build neu. Es gehoert nicht ins
+# Repository: der Workflow .github/workflows/hugo.yml baut es selbst und laedt
+# es nach GitHub Pages. Ein mitcommitteter Stand wuerde nur veralten, und
+# geloeschte Seiten wuerden darin ueberleben und weiter ausgeliefert.
+/public/
