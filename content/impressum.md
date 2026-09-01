@@ -14,7 +14,7 @@ Internet: <a href="https://www.it-agile.de" target="_blank">www.it-agile.de</a><
 Umsatzsteuergesetz: DE239483021<br>
 **Handelsregister Hamburg** HRB 92261<br>
 **Geschäftsführung:** Sebastian Keller und Urs Reupke<br>
-**Inhaltlich Verantwortlicher gemäß § 55 Abs. 2 RStV:** Sven Günther
+**Inhaltlich Verantwortlicher gemäß § 55 Abs. 2 RStV:** Sebastian Keller
 
 ### Haftung für Inhalte
 
