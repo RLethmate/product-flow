@@ -786,6 +786,104 @@ async function main() {
     try { fs.unlinkSync(DATA2); } catch (e) { }
   }
 
+  section("[13] Verlinkungen, Assets, Barrierefreiheit");
+  {
+    const { doc } = boot(soloHtml);
+
+    /* Kernprüfung: JEDER seiteninterne Link muss auf etwas zeigen, das im Repo
+     * auch entsteht. Nur zu prüfen, ob eine Quelldatei existiert, reicht nicht:
+     * Hugo bestimmt die Adresse über das Frontmatter-Feld "url". Genau daran ist
+     * der Datenschutz-Link zuvor gescheitert (../datenschutz/ statt
+     * ../datenschutz.html). */
+    function frontmatterUrls() {
+      const out = new Map();      // Adresse -> Quelldatei
+      const eigen = new Set();    // Quelldateien MIT eigener Adresse
+      const dir = path.join(REPO, "content");
+      const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => {
+        const full = path.join(d, e.name);
+        if (e.isDirectory()) return walk(full);
+        if (!/\.(md|html)$/.test(e.name)) return;
+        const head = fs.readFileSync(full, "utf8").split("---")[1] || "";
+        const m = head.match(/^\s*url:\s*(\S+)\s*$/m);
+        if (m) {
+          out.set(m[1].replace(/^\//, ""), path.relative(REPO, full));
+          eigen.add(path.resolve(full));
+        }
+      });
+      walk(dir);
+      return { out, eigen };
+    }
+
+    const { out: urls, eigen: eigeneAdresse } = frontmatterUrls();
+    check("Frontmatter-Adressen gefunden", urls.size >= 2, [...urls.keys()]);
+
+    /** Loest einen "../"-Link gegen die Wurzel der Hugo-Site auf. */
+    function resolves(href) {
+      if (!href.startsWith("../")) return null;         // extern oder anders
+      const target = href.slice(3);
+      if (target === "") return "Startseite (layouts/index.html)";
+      if (urls.has(target)) return "Frontmatter: " + urls.get(target);
+      const asStatic = path.join(REPO, "static", target);
+      if (fs.existsSync(asStatic)) return "static/" + target;
+      /* Hugos Standardadresse gilt nur, wenn die Seite KEINE eigene Adresse im
+       * Frontmatter deklariert. Sonst waere ../datenschutz/ scheinbar gueltig,
+       * obwohl ausgeliefert wird unter ../datenschutz.html. */
+      const asPage = path.join(REPO, "content", target.replace(/\/$/, "") + ".md");
+      if (fs.existsSync(asPage)) {
+        if (eigeneAdresse.has(path.resolve(asPage))) return false;
+        return "content/" + target.replace(/\/$/, "") + ".md";
+      }
+      const asIndex = path.join(REPO, "content", target.replace(/\/$/, ""), "_index.md");
+      if (fs.existsSync(asIndex)) return "content/" + target + "_index.md";
+      return false;
+    }
+
+    const interne = [...doc.querySelectorAll("[href], [src]")]
+      .map(el => el.getAttribute("href") || el.getAttribute("src"))
+      .filter(h => h && h.startsWith("../"));
+    check("seiteninterne Links vorhanden", interne.length >= 3, interne);
+    interne.forEach((h) => {
+      const r = resolves(h);
+      check("Link löst auf: " + h, !!r, r === false ? "KEIN ZIEL IM REPO" : r);
+    });
+
+    const links = [...doc.querySelectorAll("a[href]")].map(a => a.getAttribute("href"));
+    const dsUrl = [...urls.keys()].find(u => /datenschutz/.test(u));
+    check("Datenschutzseite hat eine Frontmatter-Adresse", !!dsUrl, dsUrl);
+    check("Datenschutz-Link zeigt genau darauf", links.includes("../" + dsUrl),
+      { erwartet: "../" + dsUrl, gefunden: links.filter(l => /datenschutz/.test(l)) });
+    check("kein Link auf das nicht existierende ../datenschutz/",
+      !links.includes("../datenschutz/"));
+    check("Calendly verlinkt", links.includes("https://calendly.com/it-agile?l=kontaktseite"));
+    check("Whitepaper verlinkt",
+      links.some(l => l.includes("ITA-Flowoptimierung-Whitepaper-2025.pdf")));
+    check("Startseite verlinkt", links.includes("../"));
+
+    check("externe Links mit rel=noopener",
+      [...doc.querySelectorAll('a[target="_blank"]')]
+        .every(a => (a.getAttribute("rel") || "").includes("noopener")));
+    check("lang=de", doc.documentElement.getAttribute("lang") === "de");
+    check("Viewport-Meta", !!doc.querySelector("meta[name=viewport]"));
+    check("keine externen Ressourcen",
+      [...doc.querySelectorAll("script[src], link[rel=stylesheet]")].length === 0);
+    check("alle Formularfelder mit Label",
+      [...doc.querySelectorAll("#form-contact input, #form-contact select")]
+        .filter(el => el.type !== "hidden")
+        .every(el => !!doc.querySelector('label[for="' + el.id + '"]')));
+    check("Pflichtfelder als required markiert",
+      ["c-firstname", "c-lastname", "c-email", "c-company", "c-consent"]
+        .every(id => $(doc, id).required));
+    check("Fortschritt mit aria-live", !!doc.querySelector("#progress[aria-live]"));
+    check("Schrittanzeige für Screenreader ausgeblendet",
+      doc.querySelector("#steps").getAttribute("aria-hidden") === "true");
+    check("Tabelle in eigenem Scrollbereich", !!doc.querySelector(".table-wrap table.scores"));
+
+    ["NotoSans-Regular.ttf", "NotoSans-Bold.ttf", "SourceSans3-Regular.ttf", "SourceSans3-Bold.ttf"]
+      .forEach(f => check("Schrift im Repo: " + f,
+        fs.existsSync(path.join(REPO, "static", "fonts", f))));
+    check("Favicon im Repo", fs.existsSync(path.join(REPO, "static", "images", "favicon.png")));
+  }
+
   console.log("\n=======================================");
   console.log("  " + pass + " Prüfungen bestanden, " + fail + " fehlgeschlagen");
   console.log("=======================================");
