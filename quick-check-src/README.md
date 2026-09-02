@@ -87,15 +87,77 @@ Danach `sync.py`. Das Backend muss die Herkunft `https://it-team-flow.de` in
 
 ### Was auf dem Server passiert
 
-Der Dienst hört nur auf `127.0.0.1:3000` hinter einem eigenen nginx-Server-Block
+Der Dienst hört nur auf `127.0.0.1:3000` hinter einem eigenen Apache-Auftritt
 für eine eigene Subdomain. Er hat einen eigenen Benutzer, ein eigenes
-Datenverzeichnis und schreibt ausschliesslich dorthin. Bestehende Server-Blöcke
+Datenverzeichnis und schreibt ausschliesslich dorthin. Bestehende Auftritte
 werden nicht angefasst.
 
-### Vorbereitung
+### Vorbereitung: erst den Bestand aufnehmen
 
-DNS-Eintrag `quick-check.it-team-flow.de` auf die Hetzner-Maschine
-(`162.55.222.147`). Die Zone liegt bei united-domains.
+Von aussen ist folgendes gesichert (Stand 02.09.2026):
+
+| Frage | Befund |
+|---|---|
+| Maschine | `162.55.222.147`, Hetzner, Rechenzentrum Nürnberg |
+| Webserver | **Apache**, nicht nginx |
+| Was dort läuft | `it-agile.de`, `www.it-agile.de` (TYPO3), `matomo.it-agile.de` |
+| Unbekannte Namen | Apache antwortet mit 404, es gibt also eine Auffang-Konfiguration |
+| Zertifikate | Let's Encrypt für `it-agile.de` und `www.it-agile.de`, kein Platzhalter |
+| DNS `*.it-agile.de` | Platzhalter auf `162.55.222.147`, jede Subdomain landet also schon dort |
+| DNS `*.it-team-flow.de` | Platzhalter auf GitHub Pages, `quick-check.it-team-flow.de` antwortet dort mit 404 |
+
+Was von aussen **nicht** erkennbar ist und vor dem ersten Eingriff geklärt
+werden muss:
+
+- Betriebssystem und Apache-Version, und damit die Pfade der Konfiguration.
+- Ob Apache von Hand konfiguriert wird oder ein Verwaltungswerkzeug wie Plesk
+  davorsteht. Das ist die wichtigste Frage: Bei Plesk wären Eingriffe direkt in
+  den Apache-Dateien der falsche Weg, sie würden beim nächsten Speichern im
+  Werkzeug überschrieben.
+- Ob Node.js schon installiert ist und in welcher Version.
+- Wer die Maschine administriert und ob Änderungen abgestimmt werden müssen.
+
+Diese Bestandsaufnahme ändert nichts. Auf dem Server ausführen und die Ausgabe
+mitbringen:
+
+```bash
+# Betriebssystem, Webserver, Node
+cat /etc/os-release | head -2
+apache2 -v 2>/dev/null || httpd -v 2>/dev/null
+node --version 2>/dev/null || echo "kein Node"
+
+# Verwaltungswerkzeug im Spiel?
+which plesk 2>/dev/null && echo "PLESK VORHANDEN"
+ls -d /usr/local/psa /opt/psa /usr/local/cpanel 2>/dev/null
+
+# Wie sind die vorhandenen Auftritte konfiguriert?
+ls /etc/apache2/sites-enabled/ 2>/dev/null || ls /etc/httpd/conf.d/ 2>/dev/null
+
+# Sind die Proxy-Module da, die ein Weiterleiten brauchen?
+apache2ctl -M 2>/dev/null | grep -E "proxy|headers"
+
+# Wie werden die Zertifikate erneuert?
+which certbot && certbot certificates 2>/dev/null | grep -E "Certificate Name|Domains"
+
+# Ist Port 3000 frei?
+ss -tlnp | grep -E ":3000|:80|:443"
+```
+
+### Welcher Name für den Dienst?
+
+Zwei Möglichkeiten, mit unterschiedlichem Aufwand:
+
+**`quick-check.it-agile.de`** — kein DNS-Eintrag nötig, der Platzhalter der Zone
+zeigt bereits auf die Maschine. Das Zertifikat lässt sich sofort ausstellen,
+weil der Name auflöst. Der Quick Check auf `it-team-flow.de` spricht dann eine
+andere Herkunft an; das ist vorgesehen und über `ALLOWED_ORIGINS` abgedeckt.
+
+**`quick-check.it-team-flow.de`** — bleibt in der Marke des Auftritts, verlangt
+aber einen eigenen A-Eintrag bei united-domains auf `162.55.222.147`, der den
+Platzhalter der Zone übersteuert. Erst danach lässt sich ein Zertifikat
+ausstellen.
+
+Der Aufwand spricht für den ersten Namen, die Marke für den zweiten.
 
 ### Installation
 
@@ -104,10 +166,10 @@ sudo adduser --system --group --no-create-home quickcheck
 sudo mkdir -p /opt/quick-check /var/lib/quick-check
 sudo chown quickcheck:quickcheck /var/lib/quick-check
 
-# Dateien aus quick-check-src/server/ nach /opt/quick-check kopieren,
-# public/ mit kopieren, node_modules NICHT:
-sudo rsync -a --exclude node_modules --exclude data.json \
-  quick-check-src/server/ root@SERVER:/opt/quick-check/
+# Dateien aus quick-check-src/server/ nach /opt/quick-check,
+# public/ mitnehmen, node_modules und data.json nicht:
+rsync -a --exclude node_modules --exclude data.json \
+  quick-check-src/server/ root@162.55.222.147:/opt/quick-check/
 
 cd /opt/quick-check && sudo npm ci --omit=dev
 ```
@@ -120,46 +182,75 @@ Umgebungsvariablen setzen:
 | Variable | Bedeutung |
 |---|---|
 | `ADMIN_TOKEN` | **Pflicht.** Ohne gesetztes Token antworten `/api/data` und `/api/reset` mit 503, statt Daten offenzulegen. Lang und zufällig wählen. |
-| `ALLOWED_ORIGINS` | Erlaubte Herkünfte, z. B. `https://it-team-flow.de`. Ohne Angabe sind nur Anfragen von derselben Herkunft möglich. |
-| `PUBLIC_URL` | Basis-URL für den QR-Code, z. B. `https://quick-check.it-team-flow.de`. |
+| `ALLOWED_ORIGINS` | Erlaubte Herkünfte, Kommaliste. Während der Übergangszeit: `https://rlethmate.github.io,https://it-team-flow.de` |
+| `PUBLIC_URL` | Basis-URL für den QR-Code, also der oben gewählte Name mit `https://`. Ausdrücklich setzen, dann hängt der QR-Code nicht von Kopfzeilen des Proxys ab. |
 | `DATA_FILE` | `/var/lib/quick-check/data.json` |
 
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now quick-check
 sudo systemctl status quick-check
+curl -s localhost:3000/api/aggregate   # muss {"room":"default","count":0,...} liefern
 ```
 
-### nginx
+Der Dienst hört nur auf dem Rechner selbst. Bis der Proxy steht, ist er von
+aussen nicht erreichbar.
 
-Eigene Datei unter `/etc/nginx/sites-available/quick-check`, nichts Bestehendes
-ändern:
+### Apache als Vorschaltung
 
-```nginx
-server {
-    listen 80;
-    listen [::]:80;
-    server_name quick-check.it-team-flow.de;
+Eigene Datei, damit nichts Bestehendes angefasst wird. Pfade unter Debian und
+Ubuntu, bei anderen Systemen entsprechend anpassen:
 
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
+```apache
+# /etc/apache2/sites-available/quick-check.conf
+<VirtualHost *:80>
+    ServerName quick-check.it-agile.de
+
+    ProxyPreserveHost On
+    ProxyPass        / http://127.0.0.1:3000/
+    ProxyPassReverse / http://127.0.0.1:3000/
+    RequestHeader set X-Forwarded-Proto "http"
+
+    ErrorLog  ${APACHE_LOG_DIR}/quick-check-error.log
+    CustomLog ${APACHE_LOG_DIR}/quick-check-access.log combined
+</VirtualHost>
 ```
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/quick-check /etc/nginx/sites-enabled/
-sudo nginx -t          # prueft ALLE Server-Bloecke, muss fehlerfrei sein
-sudo systemctl reload nginx
-sudo certbot --nginx -d quick-check.it-team-flow.de
+sudo a2enmod proxy proxy_http headers
+sudo a2ensite quick-check
+sudo apache2ctl configtest      # prueft ALLE Auftritte, muss "Syntax OK" sagen
+sudo systemctl reload apache2
+sudo certbot --apache -d quick-check.it-agile.de
 ```
 
-`nginx -t` vor dem Reload ist nicht optional: es ist die Absicherung dagegen,
-dass ein Fehler in der neuen Datei die bestehenden Sites mitnimmt.
+`configtest` vor dem Reload ist nicht optional: es ist die Absicherung dagegen,
+dass ein Fehler in der neuen Datei die bestehenden Auftritte mitnimmt. Solange
+`configtest` fehlschlägt, bleibt der alte Zustand aktiv.
+
+Nach `certbot` prüfen, dass der neue Auftritt über HTTPS antwortet und die
+bestehenden Auftritte unverändert laufen:
+
+```bash
+curl -sI https://quick-check.it-agile.de/quick-check/ | head -1
+curl -sI https://www.it-agile.de/            | head -1
+curl -sI https://matomo.it-agile.de/         | head -1
+```
+
+### Wieder abbauen
+
+Falls etwas nicht passt, ist der Eingriff vollständig rückbaubar:
+
+```bash
+sudo a2dissite quick-check && sudo systemctl reload apache2
+sudo systemctl disable --now quick-check
+sudo rm /etc/systemd/system/quick-check.service /etc/apache2/sites-available/quick-check.conf
+sudo rm -rf /opt/quick-check /var/lib/quick-check
+sudo deluser quickcheck
+```
+
+Bestehende Auftritte, Zertifikate und Konfigurationen bleiben davon unberührt,
+weil nichts von ihnen verändert wurde.
 
 ## Workshop durchführen
 
