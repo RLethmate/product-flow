@@ -982,6 +982,44 @@ async function main() {
       doc.querySelector("#steps").getAttribute("aria-hidden") === "true");
     check("Tabelle in eigenem Scrollbereich", !!doc.querySelector(".table-wrap table.scores"));
 
+    /* Auch die Dokumente, die die Landingpage selbst verlinkt, muessen liegen.
+     * Sie stehen in den Hugo-Vorlagen, nicht in der Quick-Check-Seite, und
+     * waeren sonst von keiner Pruefung erfasst. */
+    const vorlagen = [];
+    const walkT = (d) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => {
+      const full = path.join(d, e.name);
+      if (e.isDirectory()) return walkT(full);
+      if (/\.(html|md)$/.test(e.name)) vorlagen.push(full);
+    });
+    walkT(path.join(REPO, "layouts"));
+    walkT(path.join(REPO, "content"));
+
+    const dokumente = new Set();
+    vorlagen.forEach((f) => {
+      const t = fs.readFileSync(f, "utf8");
+      (t.match(/(?:href|src)=["']?\/?((?:documents|images|fonts)\/[^"'\s>)]+)/g) || [])
+        .forEach((m) => {
+          const rel = m.replace(/^(?:href|src)=["']?\/?/, "");
+          if (!rel.includes("{{")) dokumente.add(rel);
+        });
+    });
+    check("verlinkte Dateien in den Vorlagen gefunden", dokumente.size > 0, dokumente.size);
+    [...dokumente].sort().forEach((rel) => {
+      check("in static/ vorhanden: " + rel,
+        fs.existsSync(path.join(REPO, "static", rel)));
+    });
+
+    // Das Angebots-PDF ausdruecklich, weil es der Haupt-Download der Seite ist.
+    const angebot = path.join(REPO, "static", "documents", "UnserFlowAngebot.pdf");
+    check("Angebots-PDF vorhanden", fs.existsSync(angebot));
+    if (fs.existsSync(angebot)) {
+      const roh = fs.readFileSync(angebot);
+      check("Angebots-PDF ist ein gueltiges PDF",
+        roh.subarray(0, 5).toString() === "%PDF-" &&
+        roh.subarray(roh.length - 6).toString().includes("%%EOF"));
+      check("Angebots-PDF nicht leer", roh.length > 50000, roh.length);
+    }
+
     ["NotoSans-Regular.ttf", "NotoSans-Bold.ttf", "SourceSans3-Regular.ttf", "SourceSans3-Bold.ttf"]
       .forEach(f => check("Schrift im Repo: " + f,
         fs.existsSync(path.join(REPO, "static", "fonts", f))));
