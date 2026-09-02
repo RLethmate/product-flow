@@ -8,9 +8,10 @@ title = 'it-team-flow'
       unsafe = true
 
 [params]
-  # Vorlaeufig: die Zoom-Anmeldung liefert seit einiger Zeit HTTP 404, geprueft
-  # am 01.09.2026. Bis geklaert ist, wie es weitergeht, verweisen die sechs
-  # Webinar-Schaltflaechen auf eine E-Mail-Adresse.
-  # Alter Link, nicht loeschen, damit er wiederzufinden ist:
-  # webinar_url = "https://us02web.zoom.us/webinar/register/WN_N_4awQcYTfu5N10W7sXCcw"
-  webinar_url = "mailto:info@it-agile.de"
+  # Anmeldung zum Webinar. Wird an sechs Stellen verwendet: fuenf Schaltflaechen
+  # auf der Startseite und Verweise in vier Blogartikeln, alle ueber diese eine
+  # Einstellung. Vor dem Aendern die Erreichbarkeit pruefen: die vorige
+  # Anmeldung (Kennung WN_N_4awQcYTfu5N10W7sXCcw) lief unbemerkt auf HTTP 404,
+  # zwischenzeitlich stand hier ein mailto als Notloesung.
+  # Geprueft am 02.09.2026: HTTP 200, Thema "Die Flow Manager Rolle".
+  webinar_url = "https://us02web.zoom.us/webinar/register/WN_KjefFAgdS1KaG3SXIWI3OA#/registration"

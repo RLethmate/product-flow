@@ -868,12 +868,14 @@ async function main() {
     const zeile = aktiv.find(l => l.includes("webinar_url"));
     check("genau eine aktive Webinar-Einstellung",
       aktiv.filter(l => l.includes("webinar_url")).length === 1, zeile);
-    check("aktive Einstellung ist der mailto-Verweis",
-      /webinar_url\s*=\s*"mailto:info@it-agile\.de"/.test(zeile || ""), zeile);
-    check("kein aktiver Zoom-Link mehr",
-      !aktiv.some(l => l.includes("us02web.zoom.us")));
-    check("alter Zoom-Link als Kommentar erhalten",
-      toml.split("\n").some(l => l.trim().startsWith("#") && l.includes("us02web.zoom.us")));
+    const wert = ((zeile || "").match(/webinar_url\s*=\s*"([^"]*)"/) || [])[1];
+    check("Einstellung hat einen Wert", !!wert && wert.length > 8, wert);
+    check("Wert ist eine absolute Adresse oder ein mailto",
+      /^(https:\/\/|mailto:)/.test(wert || ""), wert);
+    /* Diese Anmeldung lief unbemerkt auf HTTP 404. Sie darf nie wieder aktiv
+     * eingetragen sein. */
+    check("die als tot bekannte Anmeldung ist nicht eingetragen",
+      !(wert || "").includes("WN_N_4awQcYTfu5N10W7sXCcw"), wert);
 
     const quellen = ["layouts", "content"];
     quellen.forEach((d) => {
