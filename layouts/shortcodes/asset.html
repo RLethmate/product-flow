@@ -1,0 +1,6 @@
+{{- /* Macht einen Pfad unabhaengig von der Basisadresse. In Inhaltsdateien
+     funktioniert keine Vorlagensyntax, deshalb dieser Kurzbaustein.
+     Aufruf:  {{< asset "PFAD-UNTER-STATIC" >}}
+     Ergebnis auf it-team-flow.de:                /PFAD-UNTER-STATIC
+     Ergebnis unter einem Unterpfad wie dem Fork: /product-flow/PFAD-UNTER-STATIC */ -}}
+{{ relURL (.Get 0) }}

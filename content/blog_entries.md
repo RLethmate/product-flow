@@ -14,8 +14,8 @@ blog_entries:
     url: "blog/wie-sie-den-naechsten-schritt-vom-chaos-zum-flow-machen-ohne-ihr-ganzes-system-umzubauen/index.html"
     image: "images/it-agile-flow-whitepaper.jpg"
     srcset: "images/it-agile-flow-whitepaper-p-500.jpg 500w, images/it-agile-flow-whitepaper-p-800.jpg 800w, images/it-agile-flow-whitepaper-p-1080.jpg 1080w"
-  - title: "Teste eure Teamübergreifende Lieferfähigkeit in wenigen Minuten mit unserem Quick Check"
-    url: "blog/quick-check/index.html"
+  - title: "Teste eure teamübergreifende Lieferfähigkeit in wenigen Minuten mit unserem Quick Check"
+    url: "quick-check/"
     image: "images/it-agile-flow-blog-chaos-flow.svg"
 ---
 

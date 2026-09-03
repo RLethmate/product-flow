@@ -13,8 +13,8 @@ Internet: <a href="https://www.it-agile.de" target="_blank">www.it-agile.de</a><
 **Umsatzsteuer-Identifikationsnummer** gemäß § 27 a<br>
 Umsatzsteuergesetz: DE239483021<br>
 **Handelsregister Hamburg** HRB 92261<br>
-**Geschäftsführung:** Stefan Roock und Sven Günther<br>
-**Inhaltlich Verantwortlicher gemäß § 55 Abs. 2 RStV:** Sven Günther
+**Geschäftsführung:** Sebastian Keller und Urs Reupke<br>
+**Inhaltlich Verantwortlicher gemäß § 55 Abs. 2 RStV:** Sebastian Keller
 
 ### Haftung für Inhalte
 
