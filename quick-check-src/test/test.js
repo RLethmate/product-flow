@@ -941,7 +941,55 @@ async function main() {
     }
   }
 
-  section("[16] Fremdnetze und Skripte der Landingpage");
+  section("[16] Übersichtsgrafiken der Startseite");
+  {
+    const idx = fs.readFileSync(path.join(REPO, "layouts", "index.html"), "utf8");
+    const css = fs.readFileSync(path.join(REPO, "static", "css",
+      "it-agile-flow-staging.css"), "utf8");
+
+    const dateien = ["ita-flow-uebersicht-1-problem.svg",
+                     "ita-flow-uebersicht-2-angebot.svg",
+                     "ita-flow-uebersicht-3-loesung.svg"];
+    dateien.forEach((f) => {
+      const p2 = path.join(REPO, "static", "images", f);
+      check("vorhanden: " + f, fs.existsSync(p2));
+      if (!fs.existsSync(p2)) return;
+      const t = fs.readFileSync(p2, "utf8");
+      check("gültiges SVG mit Querformatangabe: " + f,
+        t.startsWith("<svg") && /viewBox="0 0 1080 900"/.test(t));
+      check("in index.html verlinkt: " + f, idx.includes("images/" + f));
+    });
+
+    check("keine alten Rastergrafiken mehr in den Vorlagen",
+      !/Uebersichtsgrafik[^"]*\.jpg/.test(idx));
+    check("kein srcset mehr für die Übersichtsgrafiken",
+      !/srcset="[^"]*Uebersichtsgrafik/.test(idx));
+
+    /* Entscheidend: .graphic-2 und .graphic-3 stehen im CSS auf opacity 0 und
+     * werden ausschliesslich ueber die Webflow-Interaktionen eingeblendet.
+     * Fehlt data-w-id, bleiben zwei der drei Grafiken dauerhaft unsichtbar. */
+    ["graphic-2", "graphic-3"].forEach((k) => {
+      const regel = css.match(new RegExp("\\." + k + "\\s*\\{[^}]*\\}"));
+      check(k + " startet unsichtbar, braucht also die Interaktion",
+        !!regel && /opacity:\s*0/.test(regel[0]), regel && regel[0]);
+    });
+    ["19a90117-dc2f-8216-f6ff-0c727589fbb4",
+     "2324877a-faf4-6829-62e0-8018dadf5e53",
+     "f889bd12-266c-4dbe-693b-5301ea117374"].forEach((id) => {
+      check("Interaktions-ID erhalten: " + id.slice(0, 8), idx.includes('data-w-id="' + id + '"'));
+    });
+
+    // Informative Grafiken brauchen Alternativtexte, vorher stand dort alt=""
+    const bilder = idx.match(/<img[^>]*ita-flow-uebersicht[^>]*>/g) || [];
+    check("drei Grafiken im Markup", bilder.length === 3, bilder.length);
+    bilder.forEach((b, i) => {
+      const alt = (b.match(/alt="([^"]*)"/) || [])[1] || "";
+      check("Alternativtext bei Grafik " + (i + 1) + " (" + alt.length + " Zeichen)",
+        alt.length > 60, alt.slice(0, 50));
+    });
+  }
+
+  section("[17] Fremdnetze und Skripte der Landingpage");
   {
     const crypto = require("crypto");
     const lies = (rel) => fs.readFileSync(path.join(REPO, rel), "utf8");
@@ -1003,7 +1051,7 @@ async function main() {
       });
   }
 
-  section("[17] Verlinkungen, Assets, Barrierefreiheit");
+  section("[18] Verlinkungen, Assets, Barrierefreiheit");
   {
     const { doc } = boot(soloHtml);
 
