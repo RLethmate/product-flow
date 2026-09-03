@@ -915,9 +915,27 @@ async function main() {
       const rel = bild.slice(basis.length + 1);
       check("og:image liegt im Repo", fs.existsSync(path.join(REPO, "static", rel)), rel);
     }
-    check("Bildmaße angegeben",
-      meta('meta[property="og:image:width"]') === "1080" &&
-      meta('meta[property="og:image:height"]') === "800");
+    /* Die angegebenen Masse muessen zur Datei passen. Aus der Datei gelesen,
+     * damit die Angaben nicht auseinanderlaufen, wenn das Bild getauscht wird. */
+    if (bild) {
+      const roh = fs.readFileSync(path.join(REPO, "static", bild.slice(basis.length + 1)));
+      const istPng = roh.subarray(0, 8).toString("hex") === "89504e470d0a1a0a";
+      check("Vorschaubild ist ein PNG", istPng);
+      if (istPng) {
+        const bw = roh.readUInt32BE(16), bh = roh.readUInt32BE(20);
+        check("Bildmaße stimmen mit der Datei überein",
+          meta('meta[property="og:image:width"]') === String(bw) &&
+          meta('meta[property="og:image:height"]') === String(bh),
+          { datei: bw + "x" + bh,
+            deklariert: meta('meta[property="og:image:width"]') + "x" +
+                        meta('meta[property="og:image:height"]') });
+        /* Linkvorschauen schneiden auf etwa 1,91 zu 1. Deutlich abweichende
+         * Verhaeltnisse werden oben und unten beschnitten. */
+        const v = bw / bh;
+        check("Seitenverhältnis für Linkvorschauen geeignet",
+          v > 1.7 && v < 2.1, v.toFixed(2));
+      }
+    }
     check("Alternativtext für das Vorschaubild", !!meta('meta[property="og:image:alt"]'));
     check("og:site_name gesetzt", !!meta('meta[property="og:site_name"]'));
 

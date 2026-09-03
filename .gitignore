@@ -3,3 +3,7 @@
 # es nach GitHub Pages. Ein mitcommitteter Stand wuerde nur veralten, und
 # geloeschte Seiten wuerden darin ueberleben und weiter ausgeliefert.
 /public/
+
+# macOS legt in jedem betrachteten Ordner eine Ablagedatei an. Sie gehoert
+# nicht ins Repository und wuerde sonst irgendwann versehentlich mitcommittet.
+.DS_Store
