@@ -69,6 +69,6 @@ params:
 
   # Webinar Section
   webinar_headline: "Kostenfreies Webinar"
-  webinar_headline_highlight: "»teamübergreifende Lieferfähigkeit«"
-  webinar_text: "Erfahre in unserem Webinar, wie du Engpässe erkennst, 7x schnellere Time-to-Market erreichst und dabei Budget sparst.<br>Erhalte fundierte Einblicke und konkrete Lösungsansätze für mehr Flow in deinem Team."
+  webinar_headline_highlight: "»Die Flow Manager Rolle«"
+  webinar_text: "Erfahre in unserem Webinar, wie Flow Manager Engpässe zwischen Teams erkennen, 7x schnellere Time-to-Market erreichen und dabei Budget sparen.<br>Erhalte fundierte Einblicke und konkrete Lösungsansätze für mehr Flow zwischen deinen Teams."
 ---

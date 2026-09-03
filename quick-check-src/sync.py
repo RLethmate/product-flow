@@ -20,6 +20,7 @@ erzeugten Dateien.
 Aufruf:  python3 sync.py
 """
 
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -50,6 +51,15 @@ def script_block(code, label):
     return "  <!-- %s -->\n  <script>\n%s\n  </script>" % (label, safe)
 
 
+def basis_url():
+    """Liest baseURL aus hugo.toml, damit die Adresse nur an einer Stelle steht."""
+    toml = (REPO / "hugo.toml").read_text(encoding="utf8")
+    m = re.search(r"""^\s*baseURL\s*=\s*['"]([^'"]+)['"]""", toml, re.M)
+    if not m:
+        sys.exit("baseURL nicht in hugo.toml gefunden")
+    return m.group(1).rstrip("/")
+
+
 def build(mode):
     template = TEMPLATE.read_text(encoding="utf8")
     config = (APP_DIR / ("config.%s.js" % mode)).read_text(encoding="utf8")
@@ -61,6 +71,10 @@ def build(mode):
 
     out = template.replace("<!--QC_CONFIG-->", script_block(config, "Konfiguration: %s" % mode))
     out = out.replace("<!--QC_APP-->", script_block(app, "Anwendungslogik"))
+
+    out = out.replace("__QC_BASE__", basis_url())
+    if "__QC_BASE__" in out:
+        sys.exit("Platzhalter __QC_BASE__ nicht vollstaendig ersetzt")
 
     banner = ("<!-- ERZEUGT von quick-check-src/sync.py (Modus: %s). "
               "Nicht direkt bearbeiten, sondern quick-check-src/app/. -->\n" % mode)

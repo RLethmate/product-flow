@@ -891,7 +891,57 @@ async function main() {
     });
   }
 
-  section("[15] Fremdnetze und Skripte der Landingpage");
+  section("[15] Auffindbarkeit und Linkvorschau des Quick Checks");
+  {
+    const { doc } = boot(soloHtml);
+    const meta = (sel) => (doc.querySelector(sel) || {}).content;
+
+    const toml = fs.readFileSync(path.join(REPO, "hugo.toml"), "utf8");
+    const basis = (toml.match(/^\s*baseURL\s*=\s*['"]([^'"]+)['"]/m) || [])[1].replace(/\/$/, "");
+    check("Basisadresse aus hugo.toml gelesen", !!basis && basis.startsWith("https://"), basis);
+    check("kein Platzhalter im erzeugten Stand",
+      !soloHtml.includes("__QC_BASE__") && !teamHtml.includes("__QC_BASE__"));
+
+    const kanonisch = (doc.querySelector('link[rel=canonical]') || {}).href;
+    check("kanonische Adresse gesetzt", kanonisch === basis + "/quick-check/", kanonisch);
+    check("og:url gesetzt", meta('meta[property="og:url"]') === basis + "/quick-check/",
+      meta('meta[property="og:url"]'));
+
+    /* Linkvorschauen in Slack, LinkedIn und Co. brauchen ein Bild mit
+     * absoluter Adresse, sonst erscheint beim Teilen nur Text. */
+    const bild = meta('meta[property="og:image"]');
+    check("og:image gesetzt und absolut", !!bild && bild.startsWith(basis + "/images/"), bild);
+    if (bild) {
+      const rel = bild.slice(basis.length + 1);
+      check("og:image liegt im Repo", fs.existsSync(path.join(REPO, "static", rel)), rel);
+    }
+    check("Bildmaße angegeben",
+      meta('meta[property="og:image:width"]') === "1080" &&
+      meta('meta[property="og:image:height"]') === "800");
+    check("Alternativtext für das Vorschaubild", !!meta('meta[property="og:image:alt"]'));
+    check("og:site_name gesetzt", !!meta('meta[property="og:site_name"]'));
+
+    check("Twitter-Karte als große Vorschau",
+      meta('meta[name="twitter:card"]') === "summary_large_image");
+    check("twitter:image absolut", (meta('meta[name="twitter:image"]') || "").startsWith(basis));
+    check("twitter:title und -description gesetzt",
+      !!meta('meta[name="twitter:title"]') && !!meta('meta[name="twitter:description"]'));
+
+    check("Beschreibung vorhanden",
+      (meta('meta[name=description]') || "").length > 40, meta('meta[name=description]'));
+
+    /* Der Quick Check liegt unter static/ und ist damit keine Hugo-Seite. Ohne
+     * eigenen Eintrag fehlt er in der Sitemap, also fuer Suchmaschinen. */
+    const smPfad = path.join(REPO, "layouts", "sitemap.xml");
+    check("eigene Sitemap-Vorlage vorhanden", fs.existsSync(smPfad));
+    if (fs.existsSync(smPfad)) {
+      const sm = fs.readFileSync(smPfad, "utf8");
+      check("Sitemap führt den Quick Check ausdrücklich", /quick-check\/"\s*\|\s*absURL/.test(sm), sm.match(/.{0,40}quick-check.{0,40}/));
+      check("Sitemap listet weiterhin alle Hugo-Seiten", /range\s+\.Data\.Pages/.test(sm));
+    }
+  }
+
+  section("[16] Fremdnetze und Skripte der Landingpage");
   {
     const crypto = require("crypto");
     const lies = (rel) => fs.readFileSync(path.join(REPO, rel), "utf8");
@@ -953,7 +1003,7 @@ async function main() {
       });
   }
 
-  section("[16] Verlinkungen, Assets, Barrierefreiheit");
+  section("[17] Verlinkungen, Assets, Barrierefreiheit");
   {
     const { doc } = boot(soloHtml);
 
