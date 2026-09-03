@@ -1020,7 +1020,11 @@ async function main() {
     const absolut = [];
     vorlagen.forEach((f) => {
       const t = fs.readFileSync(f, "utf8");
-      const treffer = t.match(/(?:href|src)="\/(?:css|images|js|documents|fonts|index)[^"]*"/g);
+      /* Bewusst OHNE Positivliste: die erste Fassung dieser Pruefung deckte nur
+       * css, images und js ab und liess /impressum.html und /datenschutz.html
+       * durchgehen, die genauso brechen. Jeder wurzelbezogene Verweis zaehlt,
+       * ausser protokollrelativen (//host/...). */
+      const treffer = t.match(/(?:href|src)="\/(?!\/)[^"]*"/g);
       if (treffer) absolut.push(path.relative(REPO, f) + ": " + treffer.join(", "));
     });
     check("keine absoluten Pfade in Vorlagen und Inhalten", absolut.length === 0, absolut);
