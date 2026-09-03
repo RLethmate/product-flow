@@ -13,6 +13,44 @@ Ein Fragebogen, zwei Betriebsarten, **eine Codebasis**.
 Ersetzt das frühere Typeform (`form.typeform.com/to/JiDiDyST`) und die
 SpiderApp aus dem WIEN-IT-Workshop.
 
+## Stand am 03.09.2026
+
+**Einzelmodus ist live** unter https://it-team-flow.de/quick-check/, erreichbar
+über die Blog-Kachel der Startseite. Er läuft ohne Backend: das Ergebnis
+entsteht im Browser, das Kontaktformular überträgt nichts, und die Seite weist
+darauf hin.
+
+**Teammodus ist gebaut, aber nicht in Betrieb.** Der Code liegt vollständig
+unter `server/`, die Abhängigkeiten sind gepinnt, die Testsuite deckt ihn gegen
+einen wirklich gestarteten Server ab. Es fehlt allein die Inbetriebnahme.
+
+### Was als Nächstes zu tun ist
+
+1. **Bestandsaufnahme auf dem Server** ausführen, siehe unten. Rein lesend.
+   Die entscheidende offene Frage: steht ein Verwaltungswerkzeug wie Plesk vor
+   dem Apache? Falls ja, sind Eingriffe direkt in den Apache-Dateien der falsche
+   Weg.
+2. **Namen entscheiden**, siehe „Welcher Name für den Dienst?". Kurzfassung:
+   `quick-check.it-agile.de` braucht keinen DNS-Eintrag, weil der Platzhalter
+   der Zone schon auf die Maschine zeigt. `quick-check.it-team-flow.de` verlangt
+   einen eigenen A-Eintrag bei united-domains.
+3. **`ADMIN_TOKEN`** festlegen, lang und zufällig. Ohne gesetztes Token sind
+   `/api/data` und `/api/reset` deaktiviert.
+4. Nach der Inbetriebnahme **`apiBase` in `app/config.solo.js`** auf den Dienst
+   zeigen lassen und `python3 sync.py` ausführen, damit auch der öffentliche
+   Quick Check seine Anfragen dorthin sendet.
+
+### Was danach noch offen bleibt
+
+- **E-Mail-Benachrichtigung** bei neuen Anfragen. Ohne sie liegt ein Lead in
+  `data.json`, bis jemand ihn abholt. Das Vorbild ist das Powermail-Formular auf
+  `it-agile.de/kontakt/`, das genau das tut: speichern und benachrichtigen.
+- **Mindestzahl an Rückmeldungen**, bevor im Teammodus ein Gruppenprofil
+  erscheint. Bei drei oder vier Teilnehmenden lassen sich einzelne Antworten aus
+  dem Mittelwert zurückrechnen.
+- **Datenschutzerklärung** um den Quick Check ergänzen, sobald das
+  Kontaktformular tatsächlich Daten überträgt.
+
 ## Verzeichnisse
 
 ```
