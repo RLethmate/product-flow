@@ -996,16 +996,45 @@ async function main() {
     walkT(path.join(REPO, "layouts"));
     walkT(path.join(REPO, "content"));
 
+    /* Pfade werden je nach Ort unterschiedlich geschrieben: direkt als
+     * href="images/x.svg", in Vorlagen als {{ relURL "images/x.svg" }}, in
+     * Inhaltsdateien als {{< asset "images/x.svg" >}} und in srcset-Listen
+     * mehrfach hintereinander. Deshalb wird nicht auf die Schreibweise
+     * gesucht, sondern auf pfadartige Vorkommen selbst. */
     const dokumente = new Set();
     vorlagen.forEach((f) => {
-      const t = fs.readFileSync(f, "utf8");
-      (t.match(/(?:href|src)=["']?\/?((?:documents|images|fonts)\/[^"'\s>)]+)/g) || [])
-        .forEach((m) => {
-          const rel = m.replace(/^(?:href|src)=["']?\/?/, "");
-          if (!rel.includes("{{")) dokumente.add(rel);
-        });
+      /* Externe Adressen zuerst entfernen: die Seite laedt jQuery von einem
+       * fremden Netz, und darin steckt ebenfalls ein "js/..."-Pfad, der
+       * natuerlich nicht unter static/ liegt. */
+      const t = fs.readFileSync(f, "utf8").replace(/https?:\/\/[^"'\s)]+/g, "");
+      (t.match(/(?:documents|images|fonts|css|js)\/[A-Za-z0-9._/-]+\.[A-Za-z0-9]+/g) || [])
+        .forEach((rel) => dokumente.add(rel));
     });
-    check("verlinkte Dateien in den Vorlagen gefunden", dokumente.size > 0, dokumente.size);
+    check("verlinkte Dateien in den Vorlagen gefunden", dokumente.size > 5, dokumente.size);
+
+    /* Kernpruefung gegen den Fehler, der die Blog-Seite auf dem Fork
+     * unformatiert liess: absolute Pfade brechen, sobald die Seite unter einem
+     * Unterpfad liegt. Alle Vorlagen bis auf eine benutzten schon relative
+     * Pfade, diese eine fiel jahrelang nicht auf, weil die echte Domain in der
+     * Wurzel liegt. */
+    const absolut = [];
+    vorlagen.forEach((f) => {
+      const t = fs.readFileSync(f, "utf8");
+      const treffer = t.match(/(?:href|src)="\/(?:css|images|js|documents|fonts|index)[^"]*"/g);
+      if (treffer) absolut.push(path.relative(REPO, f) + ": " + treffer.join(", "));
+    });
+    check("keine absoluten Pfade in Vorlagen und Inhalten", absolut.length === 0, absolut);
+
+    /* Der Quick Check ersetzt das Typeform. Ein zurueckbleibender Verweis
+     * wuerde Besucher weiter auf den alten Fragebogen fuehren. */
+    const mitTypeform = vorlagen.filter((f) =>
+      /typeform/i.test(fs.readFileSync(f, "utf8"))).map((f) => path.relative(REPO, f));
+    check("kein Verweis auf Typeform mehr", mitTypeform.length === 0, mitTypeform);
+
+    // Die neue Seite muss von der Site aus erreichbar sein, nicht nur per Adresse.
+    const eintraege = fs.readFileSync(path.join(REPO, "content", "blog_entries.md"), "utf8");
+    check("Quick Check ist von der Startseite aus verlinkt",
+      /url:\s*"quick-check\/"/.test(eintraege));
     [...dokumente].sort().forEach((rel) => {
       check("in static/ vorhanden: " + rel,
         fs.existsSync(path.join(REPO, "static", rel)));
