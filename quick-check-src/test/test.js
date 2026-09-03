@@ -891,7 +891,69 @@ async function main() {
     });
   }
 
-  section("[15] Verlinkungen, Assets, Barrierefreiheit");
+  section("[15] Fremdnetze und Skripte der Landingpage");
+  {
+    const crypto = require("crypto");
+    const lies = (rel) => fs.readFileSync(path.join(REPO, rel), "utf8");
+    const alleVorlagen = [];
+    const walkV = (d) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => {
+      const full = path.join(d, e.name);
+      if (e.isDirectory()) return walkV(full);
+      if (/\.(html|md)$/.test(e.name)) alleVorlagen.push(full);
+    });
+    walkV(path.join(REPO, "layouts"));
+    walkV(path.join(REPO, "content"));
+
+    /* Die Seite lud jQuery aus einem Webflow-Netz. Bei jedem Aufruf ging damit
+     * die IP-Adresse der Besucherin an einen Dritten. Die Datei liegt jetzt
+     * lokal, byteweise dieselbe. */
+    const fremd = alleVorlagen.filter((f) =>
+      /d3e54v103j8qbb|cloudfront\.net/.test(fs.readFileSync(f, "utf8")))
+      .map((f) => path.relative(REPO, f));
+    check("kein Verweis auf das Webflow-Netz mehr", fremd.length === 0, fremd);
+
+    const jq = path.join(REPO, "static", "js", "jquery-3.5.1.min.js");
+    check("jQuery liegt lokal", fs.existsSync(jq));
+    if (fs.existsSync(jq)) {
+      const summe = crypto.createHash("sha256").update(fs.readFileSync(jq)).digest("hex");
+      /* Exakt dieselbe Datei wie von code.jquery.com und wie die bisherige
+       * Fassung aus dem Webflow-Netz, am 03.09.2026 gegen beide verglichen. */
+      check("jQuery ist unverändertes 3.5.1",
+        summe === "f7f6a5894f1d19ddad6fa392b2ece2c5e578cbf7da4ea805b6885eb6985b6e3d", summe);
+    }
+
+    /* Reihenfolge zaehlt: der Webflow-Laufzeitcode greift auf window.jQuery zu
+     * und muss danach geladen werden. */
+    const start = lies("layouts/index.html");
+    const posJq = start.indexOf("jquery-3.5.1.min.js");
+    const posWf = start.indexOf("it-agile-flow-staging.js");
+    check("Startseite lädt jQuery", posJq > -1);
+    check("Startseite lädt den Webflow-Laufzeitcode", posWf > -1);
+    check("jQuery wird vor dem Laufzeitcode geladen", posJq > -1 && posJq < posWf,
+      { jquery: posJq, laufzeit: posWf });
+
+    /* Die Startseite hat verborgene Startzustaende (opacity:0, translate3d).
+     * Ohne den Laufzeitcode blieben diese Elemente unsichtbar. Diese Pruefung
+     * verhindert, dass der Code dort versehentlich entfernt wird. */
+    const verborgen = (start.match(/opacity:\s*0|translate3d/g) || []).length;
+    check("Startseite hat verborgene Startzustände, braucht den Laufzeitcode",
+      verborgen > 10 && posWf > -1, verborgen);
+
+    /* Seiten ohne Interaktionen und ohne verborgene Zustaende sollen die
+     * beiden Skripte nicht laden. Zusammen rund 305 KB je Aufruf. */
+    ["layouts/404.html", "layouts/danke.html", "layouts/blog/single.html",
+      "layouts/_default/impressum.html", "layouts/_default/datenschutz.html"].forEach((rel) => {
+        const t = lies(rel);
+        const hatVerborgene = /opacity:\s*0|translate3d/.test(t);
+        const hatSlider = /w-slider/.test(t);
+        check("ohne verborgene Zustände und Slider: " + rel,
+          !hatVerborgene && !hatSlider, { verborgen: hatVerborgene, slider: hatSlider });
+        check("lädt weder jQuery noch Laufzeitcode: " + rel,
+          !/jquery|it-agile-flow-staging\.js/.test(t));
+      });
+  }
+
+  section("[16] Verlinkungen, Assets, Barrierefreiheit");
   {
     const { doc } = boot(soloHtml);
 
